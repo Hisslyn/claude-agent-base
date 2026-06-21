@@ -1,9 +1,12 @@
 #!/usr/bin/env bash
 # new-agent.sh — scaffold a new agent file from the template (deterministic).
 # Usage: new-agent.sh <kebab-name> [role description words...]
-# Writes <AGENTS_DIR>/<name>.md and refuses to overwrite. Refine the
-# description and tool list afterward via the agent-manager subagent.
+# Writes <AGENTS_DIR>/<name>.md and refuses to overwrite. The scaffold ships
+# disable-model-invocation: true so an unrefined agent cannot auto-route until
+# its description is written and the field removed via the agent-manager subagent.
 set -euo pipefail
+
+here="$(cd "$(dirname "$0")" && pwd)"
 
 err() {
   printf 'error: %s\n' "$1" >&2
@@ -30,7 +33,8 @@ agents_dir() {
 
 name="${1:-}"
 [[ -n "$name" ]] || err "usage: new-agent.sh <kebab-name> [role...]"
-[[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || err "name must be kebab-case"
+# Kebab-case, with an optional leading underscore for throwaway/test agents (QA-012).
+[[ "$name" =~ ^_?[a-z0-9]+(-[a-z0-9]+)*$ ]] || err "name must be kebab-case (optionally _-prefixed)"
 shift || true
 role="${*:-Describe the role.}"
 
@@ -41,8 +45,9 @@ file="$dir/$name.md"
 cat >"$file" <<EOF
 ---
 name: $name
-description: $role When to use it; what triggers auto-delegation. (Or add 'disable-model-invocation: true' for explicit-only.)
+description: $role
 model: sonnet
+disable-model-invocation: true
 tools:
   - Read
 ---
@@ -61,5 +66,12 @@ Return results to the caller with a recommendation for what to run next (no agen
 No preamble. No recap. No filler. Stop when done.
 EOF
 
+# The shell-redirect write above is not a Claude tool call, so the PostToolUse
+# validate-frontmatter hook never fires here — validate explicitly (QA-013).
+if ! python3 "$here/validate-frontmatter.py" --force "$file"; then
+  rm -f "$file"
+  err "scaffold failed frontmatter validation (removed): $file"
+fi
+
 printf 'created: %s\n' "$file"
-printf 'next: refine description + tools via the agent-manager subagent.\n'
+printf 'next: write a real description, drop disable-model-invocation, and tighten tools via the agent-manager subagent.\n'
