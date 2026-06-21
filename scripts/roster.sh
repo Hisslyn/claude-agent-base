@@ -35,7 +35,7 @@ resolve_file() {
   done
   while IFS= read -r f; do
     [[ "$(fm_field "$f" name)" == "$name" ]] && { printf '%s' "$f"; return; }
-  done < <(find "$dir" -type f -name '*.md' ! -name '*.md.off')
+  done < <(find -L "$dir" -type f -name '*.md' ! -name '*.md.off')
   err "agent not found: $2"
 }
 
@@ -45,16 +45,16 @@ cmd_list() {
   local dir; dir="$(agents_dir)"
   printf 'agents in %s\n\n' "$dir"
   printf 'ACTIVE (name | model | file)\n'
-  find "$dir" -type f -name '*.md' ! -name '*.md.off' -not -path '*/locked_*' \
+  find -L "$dir" -type f -name '*.md' ! -name '*.md.off' -not -path '*/locked_*' \
     | sort | while IFS= read -r f; do
         printf '  %s | %s | %s\n' \
           "$(fm_field "$f" name)" "$(fm_field "$f" model)" "$(basename "$f")"
       done
   printf '\nLOCKED (filename only — contents not read)\n'
-  find "$dir" -type f \( -name 'locked_*' -o -path '*/locked_*' \) ! -name '*.md.off' \
+  find -L "$dir" -type f \( -name 'locked_*' -o -path '*/locked_*' \) ! -name '*.md.off' \
     | sort | sed "s#^$dir/#  #" || true
   printf '\nDISABLED (.off)\n'
-  find "$dir" -type f -name '*.md.off' | sort | sed "s#^$dir/#  #" || true
+  find -L "$dir" -type f -name '*.md.off' | sort | sed "s#^$dir/#  #" || true
 }
 
 cmd_lock() {
@@ -73,7 +73,7 @@ cmd_unlock() {
       mv -n -- "$f" "$(dirname "$f")/${base#locked_}"
       printf 'unlocked: %s\n' "$base"; return
     fi
-  done < <(find "$dir" -type f -name 'locked_*' ! -name '*.md.off')
+  done < <(find -L "$dir" -type f -name 'locked_*' ! -name '*.md.off')
   err "not locked (per-file): $1"
 }
 
@@ -92,7 +92,7 @@ cmd_enable() {
       mv -n -- "$f" "${f%.off}"
       printf 'enabled: %s\n' "$(basename "${f%.off}")"; return
     fi
-  done < <(find "$dir" -type f -name '*.md.off')
+  done < <(find -L "$dir" -type f -name '*.md.off')
   err "not disabled: $1"
 }
 
