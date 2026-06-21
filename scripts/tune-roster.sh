@@ -11,13 +11,26 @@
 # AGENTS_DIR overrides auto-detection.
 set -euo pipefail
 
-err() { printf 'error: %s\n' "$1" >&2; exit 1; }
+err() {
+  printf 'error: %s\n' "$1" >&2
+  exit 1
+}
 
 agents_dir() {
-  if [[ -n "${AGENTS_DIR:-}" ]]; then printf '%s' "$AGENTS_DIR"; return; fi
-  local root; root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-  if [[ -n "$root" && -d "$root/.claude/agents" ]]; then printf '%s' "$root/.claude/agents"; return; fi
-  if [[ -d "$HOME/.claude/agents" ]]; then printf '%s' "$HOME/.claude/agents"; return; fi
+  if [[ -n "${AGENTS_DIR:-}" ]]; then
+    printf '%s' "$AGENTS_DIR"
+    return
+  fi
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -n "$root" && -d "$root/.claude/agents" ]]; then
+    printf '%s' "$root/.claude/agents"
+    return
+  fi
+  if [[ -d "$HOME/.claude/agents" ]]; then
+    printf '%s' "$HOME/.claude/agents"
+    return
+  fi
   err "no agents dir found (set AGENTS_DIR)"
 }
 
@@ -29,8 +42,8 @@ fm_field() {
 }
 
 hash_standard() {
-  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' ' \
-    | sed 's/^ //;s/ $//' | sha256sum | cut -d' ' -f1
+  printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' ' |
+    sed 's/^ //;s/ $//' | sha256sum | cut -d' ' -f1
 }
 
 in_git() { git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1; }
@@ -51,11 +64,17 @@ stored_standard() { [[ -f "$(manifest)" ]] && sed -n 's/^# standard //p' "$(mani
 
 cmd_init() {
   local dir std fresh=0 h
-  dir="$(agents_dir)"; std="${1:-}"; [[ -n "$std" ]] || err "usage: tune-roster.sh init \"<standard>\" [--fresh]"
+  dir="$(agents_dir)"
+  std="${1:-}"
+  [[ -n "$std" ]] || err "usage: tune-roster.sh init \"<standard>\" [--fresh]"
   [[ "${2:-}" == "--fresh" ]] && fresh=1
   h="$(hash_standard "$std")"
   if [[ -f "$(manifest)" && $fresh -eq 0 ]]; then
-    if [[ "$(stored_hash)" == "$h" ]]; then printf 'resuming existing pass\n'; cmd_status; return; fi
+    if [[ "$(stored_hash)" == "$h" ]]; then
+      printf 'resuming existing pass\n'
+      cmd_status
+      return
+    fi
     err "a different standard is in progress; pass --fresh to reset (this re-tunes the whole roster)"
   fi
   {
@@ -64,7 +83,7 @@ cmd_init() {
     tunable_files "$dir" | while IFS= read -r f; do
       printf '%s\tpending\t%s\n' "$(fm_field "$f" name)" "$f"
     done
-  } > "$(manifest)"
+  } >"$(manifest)"
   if ! in_git "$dir"; then
     tunable_files "$dir" | while IFS= read -r f; do cp -- "$f" "$f.bak"; done
     printf 'not a git repo: backed up tunable files to .bak\n'
@@ -76,19 +95,24 @@ cmd_next() {
   local line file
   [[ -f "$(manifest)" ]] || err "no manifest; run init first"
   line="$(grep -m1 $'\tpending\t' "$(manifest)" || true)"
-  if [[ -z "$line" ]]; then printf 'DONE\n'; return; fi
+  if [[ -z "$line" ]]; then
+    printf 'DONE\n'
+    return
+  fi
   file="$(printf '%s' "$line" | cut -f3)"
   printf '%s\n---STANDARD---\n%s\n' "$file" "$(stored_standard)"
 }
 
 cmd_done() {
-  local dir name tmp file; dir="$(agents_dir)"; name="${1:-}"
+  local dir name tmp file
+  dir="$(agents_dir)"
+  name="${1:-}"
   [[ -n "$name" ]] || err "usage: tune-roster.sh done <name>"
   [[ -f "$(manifest)" ]] || err "no manifest"
   grep -q "^$name"$'\t' "$(manifest)" || err "unknown agent: $name"
   file="$(grep -m1 "^$name"$'\t' "$(manifest)" | cut -f3)"
   tmp="$(mktemp)"
-  awk -F'\t' -v OFS='\t' -v n="$name" '$1==n{$2="done"} {print}' "$(manifest)" > "$tmp"
+  awk -F'\t' -v OFS='\t' -v n="$name" '$1==n{$2="done"} {print}' "$(manifest)" >"$tmp"
   mv -- "$tmp" "$(manifest)"
   if in_git "$dir" && [[ -f "$file" ]]; then
     git -C "$dir" add -- "$file"
@@ -99,7 +123,8 @@ cmd_done() {
 
 cmd_status() {
   local m total done_n nextn
-  m="$(manifest)"; [[ -f "$m" ]] || err "no manifest"
+  m="$(manifest)"
+  [[ -f "$m" ]] || err "no manifest"
   total="$(grep -cE $'\t(pending|done)\t' "$m" || true)"
   done_n="$(grep -cE $'\tdone\t' "$m" || true)"
   nextn="$(grep -m1 $'\tpending\t' "$m" | cut -f1 || true)"
@@ -107,20 +132,25 @@ cmd_status() {
 }
 
 cmd_finish() {
-  local dir; dir="$(agents_dir)"
+  local dir
+  dir="$(agents_dir)"
   [[ -f "$(manifest)" ]] || err "no manifest"
   grep -qE $'\tpending\t' "$(manifest)" && err "pass not complete; run until DONE first"
   shopt -s nullglob
-  local b; for b in "$dir"/*.bak; do rm -- "$b"; done
+  local b
+  for b in "$dir"/*.bak; do rm -- "$b"; done
   rm -- "$(manifest)"
   printf 'pass complete: removed .bak files and manifest\n'
 }
 
 case "${1:-}" in
-  init)   shift; cmd_init "$@" ;;
-  next)   cmd_next ;;
-  done)   cmd_done "${2:-}" ;;
-  status) cmd_status ;;
-  finish) cmd_finish ;;
-  *) err "usage: tune-roster.sh init|next|done|status|finish" ;;
+init)
+  shift
+  cmd_init "$@"
+  ;;
+next) cmd_next ;;
+done) cmd_done "${2:-}" ;;
+status) cmd_status ;;
+finish) cmd_finish ;;
+*) err "usage: tune-roster.sh init|next|done|status|finish" ;;
 esac
