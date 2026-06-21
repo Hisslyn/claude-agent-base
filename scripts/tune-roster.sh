@@ -42,7 +42,7 @@ tunable_files() {
     [[ "$(basename "$f")" == agent-manager.md ]] && continue
     [[ "$(fm_field "$f" name)" == "agent-manager" ]] && continue
     printf '%s\n' "$f"
-  done < <(find "$dir" -type f -name '*.md' ! -name '*.md.off' -not -path '*/locked_*' | sort)
+  done < <(find -L "$dir" -type f -name '*.md' ! -name '*.md.off' -not -path '*/locked_*' | sort)
 }
 
 manifest() { printf '%s/_roster_manifest' "$(agents_dir)"; }
@@ -92,7 +92,7 @@ cmd_done() {
   mv -- "$tmp" "$(manifest)"
   if in_git "$dir" && [[ -f "$file" ]]; then
     git -C "$dir" add -- "$file"
-    git -C "$dir" commit -- "$file" -m "agents: tune $name" >/dev/null 2>&1 || true
+    git -C "$dir" commit -m "agents: tune $name" -- "$file" >/dev/null 2>&1 || true
   fi
   cmd_status
 }
@@ -100,8 +100,8 @@ cmd_done() {
 cmd_status() {
   local m total done_n nextn
   m="$(manifest)"; [[ -f "$m" ]] || err "no manifest"
-  total="$(grep -cP '\t(pending|done)\t' "$m" || true)"
-  done_n="$(grep -cP '\tdone\t' "$m" || true)"
+  total="$(grep -cE $'\t(pending|done)\t' "$m" || true)"
+  done_n="$(grep -cE $'\tdone\t' "$m" || true)"
   nextn="$(grep -m1 $'\tpending\t' "$m" | cut -f1 || true)"
   printf 'ROSTER PASS: %s/%s done — next: %s\n' "${done_n:-0}" "${total:-0}" "${nextn:-DONE}"
 }
@@ -109,7 +109,7 @@ cmd_status() {
 cmd_finish() {
   local dir; dir="$(agents_dir)"
   [[ -f "$(manifest)" ]] || err "no manifest"
-  grep -qP '\tpending\t' "$(manifest)" && err "pass not complete; run until DONE first"
+  grep -qE $'\tpending\t' "$(manifest)" && err "pass not complete; run until DONE first"
   shopt -s nullglob
   local b; for b in "$dir"/*.bak; do rm -- "$b"; done
   rm -- "$(manifest)"
