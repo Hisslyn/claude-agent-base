@@ -1,0 +1,16 @@
+{
+  "// note": "Merge into .claude/settings.json. Runs after every Edit/Write; the script self-limits to .md files under .claude/agents and exits 2 (blocks/flags) on invalid frontmatter. Hook schema varies by Claude Code version — verify against /hooks docs. $CLAUDE_PROJECT_DIR resolves to the project root.",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/validate-frontmatter.py\""
+          }
+        ]
+      }
+    ]
+  }
+}
