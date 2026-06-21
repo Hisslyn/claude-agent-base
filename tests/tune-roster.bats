@@ -7,8 +7,11 @@ load 'helper'
   run "$TUNE" init "be excellent"
   [ "$status" -eq 0 ]
   assert_contains "$output" ".bak"
-  [ -f "$AGENTS_DIR/a.md.bak" ]
-  [ -f "$AGENTS_DIR/b.md.bak" ]
+  # Transient state (incl. .bak) now lives outside the discovery tree (QA-026).
+  sd="$("$TUNE" _statedir)"
+  [ ! -e "$AGENTS_DIR/a.md.bak" ]
+  [ -f "$sd/a.md.bak" ]
+  [ -f "$sd/b.md.bak" ]
 }
 
 @test "done: commits scoped to exactly one file, never -A/-am" {
@@ -39,7 +42,8 @@ load 'helper'
 @test "next: half-written manifest with one pending returns that file" {
   mk_agent "$AGENTS_DIR" "a.md" "a"
   mk_agent "$AGENTS_DIR" "b.md" "b"
-  m="$AGENTS_DIR/_roster_manifest"
+  m="$("$TUNE" _manifest)"
+  mkdir -p "$(dirname "$m")"
   {
     printf '# hash deadbeef\n'
     printf '# standard the standard\n'
