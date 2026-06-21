@@ -5,25 +5,40 @@
 # description and tool list afterward via the agent-manager subagent.
 set -euo pipefail
 
-err() { printf 'error: %s\n' "$1" >&2; exit 1; }
+err() {
+  printf 'error: %s\n' "$1" >&2
+  exit 1
+}
 
 agents_dir() {
-  if [[ -n "${AGENTS_DIR:-}" ]]; then printf '%s' "$AGENTS_DIR"; return; fi
-  local root; root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
-  if [[ -n "$root" && -d "$root/.claude/agents" ]]; then printf '%s' "$root/.claude/agents"; return; fi
-  if [[ -d "$HOME/.claude/agents" ]]; then printf '%s' "$HOME/.claude/agents"; return; fi
+  if [[ -n "${AGENTS_DIR:-}" ]]; then
+    printf '%s' "$AGENTS_DIR"
+    return
+  fi
+  local root
+  root="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -n "$root" && -d "$root/.claude/agents" ]]; then
+    printf '%s' "$root/.claude/agents"
+    return
+  fi
+  if [[ -d "$HOME/.claude/agents" ]]; then
+    printf '%s' "$HOME/.claude/agents"
+    return
+  fi
   err "no agents dir found (set AGENTS_DIR)"
 }
 
-name="${1:-}"; [[ -n "$name" ]] || err "usage: new-agent.sh <kebab-name> [role...]"
+name="${1:-}"
+[[ -n "$name" ]] || err "usage: new-agent.sh <kebab-name> [role...]"
 [[ "$name" =~ ^[a-z0-9]+(-[a-z0-9]+)*$ ]] || err "name must be kebab-case"
 shift || true
 role="${*:-Describe the role.}"
 
-dir="$(agents_dir)"; file="$dir/$name.md"
+dir="$(agents_dir)"
+file="$dir/$name.md"
 [[ -e "$file" ]] && err "already exists: $file"
 
-cat > "$file" <<EOF
+cat >"$file" <<EOF
 ---
 name: $name
 description: $role When to use it; what triggers auto-delegation. (Or add 'disable-model-invocation: true' for explicit-only.)
