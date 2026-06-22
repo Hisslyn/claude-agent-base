@@ -18,16 +18,18 @@ scripts/
   tune-roster.sh                       resumable bulk-tune loop: manifest, resume, git, backups, exclusions
   new-agent.sh                         deterministic skeleton from the template
   validate-frontmatter.py              hook script: re-parse frontmatter, exit 2 on invalid
+  install.sh                           project-vendored wiring: symlink into .claude/, write the hook
 hooks/
   settings.snippet.json                registers validate-frontmatter as a PostToolUse hook
 ```
 
 ## Wiring
-- Drop `agents/`, `skills/`, `commands/` into `.claude/` (project) or `~/.claude/` (global).
-- Put `scripts/` at the project root (the commands call `scripts/<x>.sh`; adjust the path if you place them elsewhere). `chmod +x scripts/*.sh scripts/*.py`.
-- Merge `hooks/settings.snippet.json` into `.claude/settings.json`.
+This base is **project-vendored**: it lives under a project's `.claude/`, and the commands reach the scripts via `$CLAUDE_PROJECT_DIR/scripts/<x>.sh`.
+- Run `bash scripts/install.sh [TARGET_PROJECT_DIR]` (defaults to this repo). It symlinks `agents/`, `skills/`, `commands/` into `<target>/.claude/`, vendors `scripts/` for a foreign target, `chmod +x`es the scripts, and writes a `.claude/settings.json` with the `validate-frontmatter` PostToolUse hook (or tells you to merge `hooks/settings.snippet.json` if one already exists).
+- **Restart Claude Code after installing** — agents/skills/commands are discovered at session start, so a running session won't see a fresh install (this is why a "restarted" session still showed nothing until the files were actually under `.claude/`).
+- The source `agents/`, `skills/`, `commands/` directories are NOT discovery paths on their own; only `.claude/` (project) and `~/.claude/` (global) are scanned.
 - The slim agent preloads the reference skill via `skills: [agent-roster-reference]`, so the knowledge is in its context at startup without bloating every other agent.
-- All scripts auto-detect the agents dir from the git root, or set `AGENTS_DIR`.
+- Scripts auto-detect the agents dir (`$root/.claude/agents`, else `~/.claude/agents`), or set `AGENTS_DIR` to pin a single scope.
 
 ## What stays in the LLM vs not
 Judgment (the subagent): auditing a description for routing quality, merge/split decisions, tuning to a standard, rewriting handoffs, flagging dormancy. Everything else is a fully-specified file operation and runs as a script — no model in the loop for a rename or a directory listing.
