@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# pre-commit — guard the frozen agents-base-v1 baseline. The locked_ prefix is
+# honor-system; this is enforced. Blocks commits that touch the judgment
+# subagent, the reference skill, or the scripts unless ALLOW_BASE_EDIT=1 is set.
+# Install: cp hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+set -euo pipefail
+
+protected='^(agents/agent-manager\.md|skills/agent-roster-reference/|scripts/)'
+staged="$(git diff --cached --name-only | grep -E "$protected" || true)"
+
+if [[ -n "$staged" && "${ALLOW_BASE_EDIT:-0}" != "1" ]]; then
+  {
+    printf 'pre-commit: blocked — frozen baseline (agents-base-v1) files:\n'
+    printf '%s\n' "$staged" | sed 's/^/  /'
+    printf 'These are protected. Re-run with ALLOW_BASE_EDIT=1 to override intentionally.\n'
+  } >&2
+  exit 1
+fi
