@@ -36,6 +36,13 @@ Rename `name.md` → `name.md.off` (`mv`). Claude Code loads only `.md`, so `.of
 ## Delegation model
 No subagent can spawn another subagent (the default). Claude Code returns a subagent's single result to its caller; only the caller (the main session, or your orchestration layer) re-delegates. So `orchestrator → coder → code-reviewer` means the orchestrator issues coder, gets the result, then issues code-reviewer — never coder spawning code-reviewer. Handoff instructions inside an agent are recommendations returned upward, not nested calls. Rewrite any "delegate to X" / "call X" into "return to the orchestrator with a recommendation to run X next."
 
+## Scaling the roster — routing tiers (do not rely on a flat description match)
+Routing is flat description-matching: every agent's `description` is injected as router match text, and subfolders are cosmetic (identity is the `name`). This holds at a few dozen agents; past ~50–100 the combined descriptions bloat the router context every turn and overlapping "Use when…" lines stop discriminating, so mis-routing climbs. The roster directory is an organization surface, not a routing surface.
+- Make routing two-level. Keep a small set of top-level, auto-routable **domain coordinators** (e.g. build, data, business) whose descriptions are the only ones competing for the first hop; give each a scoped `agents:` allowlist of the specialists it may delegate to.
+- Set `disable-model-invocation: true` on the specialists so they never compete in the global router — they are reached only through their coordinator's `agents:` list (which overrides the flag). Only the handful of coordinators carry auto-routing descriptions.
+- This bounds the descriptions the router weighs at each hop to a handful regardless of total roster size, and keeps domains independently evolvable.
+- Audit signal: if a single flat tier exceeds ~30–40 auto-routable agents, split by domain behind coordinators before adding more.
+
 ## Frontmatter schema
 Required: `name`, `description`. Common optional: `model`, `tools` (allowlist; omit to inherit the thread's tools), `disallowedTools`, `disable-model-invocation`, `user-invocable`, `skills` (preloads skill content at startup), `permissionMode`, `agents`. The documented canonical form for `tools` is comma-separated (`tools: Read, Edit, Glob`); the YAML block-list form is common too — confirm your version accepts it before standardizing on one.
 
