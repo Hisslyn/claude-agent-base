@@ -164,7 +164,7 @@ def main():
     argv = sys.argv[1:]
     force = "--force" in argv
     argv = [a for a in argv if a != "--force"]
-    target = argv[0] if argv else target_from_stdin()
+    target = argv[0] if argv else (target_from_stdin() if not sys.stdin.isatty() else None)
     if not target or (not force and not is_agent_md(target)):
         return 0
     code, msg = validate(target)
