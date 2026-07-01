@@ -35,6 +35,28 @@ fi
 chmod +x "$root"/scripts/*.sh 2>/dev/null || true
 chmod +x "$root"/scripts/*.py 2>/dev/null || true
 
+# Wire the frozen-baseline pre-commit guard into the target's git hooks,
+# without clobbering an existing custom hook.
+hook_src="$root/hooks/pre-commit"
+if git_dir="$(git -C "$target" rev-parse --git-dir 2>/dev/null)"; then
+  hook_dst="$target/$git_dir/hooks/pre-commit"
+  if [[ -f "$hook_src" ]]; then
+    if [[ -e "$hook_dst" ]] && ! cmp -s "$hook_src" "$hook_dst"; then
+      printf 'note: custom pre-commit hook exists at %s — not overwritten.\n' "$hook_dst"
+      printf '      to adopt the frozen-baseline guard manually: cp "%s" "%s" && chmod +x "%s"\n' "$hook_src" "$hook_dst" "$hook_dst"
+    elif [[ -e "$hook_dst" ]]; then
+      printf 'skip (already installed): %s\n' "$hook_dst"
+    else
+      cp "$hook_src" "$hook_dst"
+      chmod +x "$hook_dst"
+      printf 'installed: %s\n' "$hook_dst"
+    fi
+  fi
+else
+  printf 'note: %s is not a git repo — pre-commit guard not installed.\n' "$target"
+  printf '      to adopt it after git init: cp "%s" .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit\n' "$hook_src"
+fi
+
 if [[ -e "$target/.claude/settings.json" ]]; then
   printf 'note: %s exists — merge hooks/settings.snippet.json yourself\n' "$target/.claude/settings.json"
 else

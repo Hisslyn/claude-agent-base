@@ -21,6 +21,7 @@ mk_agent() {
   cat >"$dir/$fn" <<EOF
 ---
 name: $nm
+description: Test fixture agent $nm used by the scripts/ hardening suite.
 model: $model
 tools:
   - Read
