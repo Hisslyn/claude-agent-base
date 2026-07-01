@@ -18,6 +18,19 @@ err() {
   exit 1
 }
 
+# Portable sha256: prefer sha256sum, fall back to shasum -a 256 (macOS has no
+# sha256sum by default), fail loudly rather than emit a path with an empty
+# hash component.
+sha256_of_stdin() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256
+  else
+    err "no sha256sum or shasum found — cannot compute hash"
+  fi
+}
+
 PASS_ID="default"
 ARGS=()
 while [[ $# -gt 0 ]]; do
@@ -64,7 +77,7 @@ state_dir() {
   else
     tmp="${TMPDIR:-/tmp}"
     tmp="${tmp%/}"
-    printf '%s/agent-roster-%s' "$tmp" "$(printf '%s' "$dir" | sha256sum | cut -c1-12)"
+    printf '%s/agent-roster-%s' "$tmp" "$(printf '%s' "$dir" | sha256_of_stdin | cut -c1-12)"
   fi
 }
 
@@ -113,7 +126,7 @@ fm_field() {
 
 hash_standard() {
   printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -s '[:space:]' ' ' |
-    sed 's/^ //;s/ $//' | sha256sum | cut -d' ' -f1
+    sed 's/^ //;s/ $//' | sha256_of_stdin | cut -d' ' -f1
 }
 
 in_git() { git -C "$1" rev-parse --is-inside-work-tree >/dev/null 2>&1; }
@@ -174,10 +187,32 @@ cmd_init() {
     done
   } >"$mf"
   if ! in_git "$dir"; then
-    tunable_files "$dir" | while IFS= read -r f; do cp -- "$f" "$sd/$(basename "$f").bak"; done
+    tunable_files "$dir" | while IFS= read -r f; do cp -- "$f" "$sd/$(basename "$f").$PASS_ID.bak"; done
     printf 'not a git repo: backed up tunable files to .bak\n'
   fi
+  _cleanup_old_baks "$sd"
   cmd_status
+}
+
+# Reclaim old backups across all passes: group *.bak by agent basename
+# (the part before the .$PASS_ID.bak suffix), keep the N most recent by
+# mtime, delete the rest. This also reaches an abandoned pass's baks,
+# since grouping is by agent name, not by pass-id. N via ROSTER_BAK_KEEP
+# (default 10).
+_cleanup_old_baks() {
+  local sd="$1" keep="${ROSTER_BAK_KEEP:-10}"
+  [[ -d "$sd" ]] || return 0
+  find "$sd" -maxdepth 1 -type f -name '*.bak' -print 2>/dev/null |
+    awk -F/ '{print $NF}' |
+    sed -E 's/\.[^.]+\.bak$//' |
+    sort -u |
+    while IFS= read -r base; do
+      [[ -n "$base" ]] || continue
+      find "$sd" -maxdepth 1 -type f -name "${base}.*.bak" -print0 2>/dev/null |
+        xargs -0 ls -t 2>/dev/null |
+        tail -n +"$((keep + 1))" |
+        while IFS= read -r old; do rm -f -- "$old"; done
+    done
 }
 
 cmd_next() {
@@ -212,9 +247,13 @@ cmd_done() {
   awk -F'\t' -v OFS='\t' -v n="$name" '$1 == n { $2 = "done" } { print }' "$mf" >"$tmp"
   mv -- "$tmp" "$mf"
   file="$(resolve_by_name "$dir" "$name")"
-  if in_git "$dir" && [[ -n "$file" && -f "$file" ]]; then
+  if [[ -z "$file" || ! -f "$file" ]]; then
+    printf 'warning: %s marked done but its file is missing or unresolved (no commit made)\n' "$name" >&2
+  elif in_git "$dir"; then
     git -C "$dir" add -- "$file"
-    git -C "$dir" commit -m "agents: tune $name" -- "$file" >/dev/null 2>&1 || true
+    if ! git -C "$dir" commit -m "agents: tune $name" -- "$file" >/dev/null 2>&1; then
+      printf 'warning: git commit failed for %s (%s) — changes staged but not committed\n' "$name" "$file" >&2
+    fi
   fi
   cmd_status
 }
@@ -237,9 +276,9 @@ cmd_finish() {
   grep -qE $'\t(pending|inprogress)\t' "$mf" && err "pass not complete; run until DONE first"
   sd="$(state_dir)"
   shopt -s nullglob
-  for b in "$sd"/*.bak; do rm -- "$b"; done
+  for b in "$sd"/*."$PASS_ID".bak; do rm -- "$b"; done
   rm -f -- "$mf"
-  printf 'pass complete: removed .bak files and manifest\n'
+  printf 'pass complete: removed .%s.bak files and manifest\n' "$PASS_ID"
 }
 
 case "${1:-}" in

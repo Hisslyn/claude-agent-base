@@ -10,8 +10,8 @@ load 'helper'
   # Transient state (incl. .bak) now lives outside the discovery tree (QA-026).
   sd="$("$TUNE" _statedir)"
   [ ! -e "$AGENTS_DIR/a.md.bak" ]
-  [ -f "$sd/a.md.bak" ]
-  [ -f "$sd/b.md.bak" ]
+  [ -f "$sd/a.md.default.bak" ]
+  [ -f "$sd/b.md.default.bak" ]
 }
 
 @test "done: commits scoped to exactly one file, never -A/-am" {
