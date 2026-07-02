@@ -63,6 +63,37 @@ tools:
 No preamble. No recap. No filler. Stop when done.
 ```
 
+## Pinned facts (v2)
+
+### Model ID table
+| Tier | Pinned model ID |
+| --- | --- |
+| opus | `claude-opus-4-8` |
+| sonnet | `claude-sonnet-5` |
+| haiku | `claude-haiku-4-5` |
+
+Aliases (opus/sonnet/haiku) are banned in agent files; re-tier passes update this table.
+
+### Valid subagent frontmatter fields
+`name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, `color`, `initialPrompt`.
+
+Closed list — fields outside it are invalid; `disable-model-invocation` and `user-invocable` are inert on subagents (valid on skills/commands only).
+
+### Nonce-marker verification pattern
+1. Generate a fresh nonce.
+2. The target writes it to a marker file as a side effect of the work.
+3. Check the marker file's content after the run.
+4. The marker overrides narrated text, always.
+
+### suggestion.md spec
+- Per-directory pool: one `suggestion.md` per agent directory.
+- Append-only: never edit prior entries.
+- One line per entry, format: `- [YYYY-MM-DD] [<agent name>] <suggestion, max 2 sentences>`.
+- Entries are optional and appear only on genuine capability gaps.
+
+### Funnel model
+UNRESOLVED — pending nested-spawn verification (Prompt B). Do not assume coordinators can spawn.
+
 ## Critical rules to propagate
 - Bound danger with the `tools:` allowlist (and `disallowedTools`) first, prose second.
 - Never change `name:`. Never `rm` an agent — all destructive ops go through `mv` (→ `.off` / `.bak`).
