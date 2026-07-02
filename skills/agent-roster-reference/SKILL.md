@@ -92,7 +92,7 @@ Closed list — fields outside it are invalid; `disable-model-invocation` and `u
 - Entries are optional and appear only on genuine capability gaps.
 
 ### Funnel model
-UNRESOLVED — pending nested-spawn verification (Prompt B). Do not assume coordinators can spawn.
+Funnel model: ENFORCED IS DEAD on CLI 2.1.198 — verified 2026-07-02 via nonce-marker test. A subagent spawning a sub-subagent does not execute the target's project agent definition (narrates/fabricates instead; marker never written; both bare `Agent` and explicit `Agent(name)` forms fail). Depth-1 `claude --agent <name>` works faithfully. Routing model is SOFT: description-driven, non-overlapping trigger descriptions, main thread is the router. Do not re-test without a CLI version change; re-verify with the nonce-marker pattern if the CLI major-updates.
 
 ## Critical rules to propagate
 - Bound danger with the `tools:` allowlist (and `disallowedTools`) first, prose second.
