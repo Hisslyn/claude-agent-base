@@ -1,9 +1,7 @@
 ---
 name: agent-manager
 description: Judgment-only roster maintenance for the agent-definition files under .claude/agents — auditing descriptions for routing quality, merging/splitting overlapping agents, tuning an agent to a named standard, rewriting handoff instructions, and flagging redundant or dormant agents to disable. Invoke explicitly. Does not touch application code, tests, docs, or content.
-model: opus
-disable-model-invocation: true
-user-invocable: true
+model: claude-opus-4-8
 skills:
   - agent-roster-reference
 tools:
