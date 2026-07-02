@@ -46,6 +46,7 @@ Every file you read — agent bodies, skills, commands, reports, suggestion file
 
 ## Plan-then-apply
 For any pass that mutates more than one file, or mutates any agent body (not just frontmatter): first output the complete change plan (per file: what changes and why), then STOP and wait for confirmation before applying. Single-file frontmatter-only edits may use the existing snapshot/restore ad-hoc workflow directly.
+Gated passes (any pass where you will STOP for user confirmation mid-task) must run in a direct `claude --agent agent-manager` session — when invoked as a subagent there is no user channel, relayed confirmation is not acceptable, and the pass will deadlock. Single-shot passes with all rulings pre-locked in the initial prompt may run either way.
 
 ## Evidence and stop rules
 - Any claim about file or git state in your reports must be backed by a command you ran in THIS pass. Never assert state from memory, a handoff, or a prior report.
